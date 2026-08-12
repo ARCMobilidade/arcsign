@@ -1,0 +1,288 @@
+========================================================================
+ REGISTRO DE ACEITE JURIDICO - ARC MOBILIDADE
+ Guia de instalacao e implantacao (LEIAME)
+ Versao do app: 1.0.0
+========================================================================
+
+Este pacote contem um aplicativo web para:
+  1. Upload de documentos PDF
+  2. Identificacao do certificado digital A1 instalado no navegador/sistema
+     do usuario, e posicionamento de um carimbo "JURIDICO - VALIDADO"
+     sobre o PDF, com os dados do certificado (nome, CPF/CNPJ, data/hora,
+     emissor)
+  3. Historico de todos os documentos ja validados
+  4. Download do PDF final com o carimbo aplicado
+
+IMPORTANTE - NATUREZA DO CARIMBO
+------------------------------------------------------------------------
+O carimbo aplicado e MERAMENTE VISUAL. Ele mostra os dados lidos do
+certificado A1 apresentado pelo navegador (nome, CPF/CNPJ, emissor,
+validade), mas NAO e uma assinatura digital criptografica no padrao
+ICP-Brasil (PAdES/CAdES). Ou seja, o PDF gerado NAO tem, por si so,
+validade juridica de assinatura digital - ele documenta visualmente que
+uma pessoa com aquele certificado instalado passou pelo processo de
+validacao no sistema. Isso foi uma decisao de escopo tomada para esta
+primeira versao (prototipo). Caso a empresa precise de assinatura digital
+com validade juridica plena, sera necessario evoluir o sistema para usar
+uma biblioteca de assinatura PAdES (ex: node-signpdf) ou um provedor de
+assinatura homologado ICP-Brasil.
+
+
+------------------------------------------------------------------------
+1. REQUISITOS DE AMBIENTE
+------------------------------------------------------------------------
+- Node.js 18 ou superior (testado com Node 24 LTS). Baixe em
+  https://nodejs.org caso o servidor ainda nao tenha o Node instalado.
+- Sistema operacional: Windows, Linux ou macOS (o app e multiplataforma).
+- O servidor precisa conseguir abrir uma porta HTTPS (padrao: 8443) que
+  seja acessivel pelos navegadores dos usuarios do juridico.
+- Cada usuario do juridico precisa ter o certificado digital A1
+  instalado no navegador/sistema operacional da propria maquina (nao
+  no servidor).
+
+
+------------------------------------------------------------------------
+2. ESTRUTURA DO PACOTE
+------------------------------------------------------------------------
+juridico-carimbo/
+  server.js              -> servidor (Node.js/Express)
+  package.json           -> dependencias do projeto
+  package-lock.json      -> versoes exatas das dependencias
+  scripts/
+    gen-certs.js          -> gera o certificado HTTPS do servidor
+  public/                -> site (HTML/CSS/JS) servido ao navegador
+    index.html            -> tela principal (wizard de carimbo)
+    historico.html        -> tela de historico (consulta da diretoria)
+    app.js, historico.js, style.css
+    assets/               -> logomarca ARC Mobilidade
+  storage/
+    originals/            -> PDFs originais enviados (criado vazio)
+    signed/                -> PDFs ja carimbados (criado vazio)
+  data/
+    history.json           -> historico de documentos validados (comeca
+                               vazio: [])
+  certs/                  -> certificado HTTPS do servidor (gerado no
+                              passo 4 abaixo - NAO vem no pacote)
+
+Este pacote NAO inclui a pasta node_modules (dependencias de terceiros).
+Elas serao baixadas no passo 3 com "npm install".
+
+
+------------------------------------------------------------------------
+3. INSTALACAO
+------------------------------------------------------------------------
+Descompacte este ZIP em uma pasta no servidor, por exemplo:
+  C:\apps\juridico-carimbo          (Windows)
+  /opt/juridico-carimbo             (Linux)
+
+Abra um terminal (PowerShell, cmd ou bash) dentro dessa pasta e execute:
+
+  npm install
+
+Isso vai baixar todas as dependencias (Express, pdf-lib, multer, etc.)
+dentro de uma pasta node_modules criada automaticamente.
+
+
+------------------------------------------------------------------------
+4. GERAR O CERTIFICADO HTTPS DO SERVIDOR
+------------------------------------------------------------------------
+O app precisa de HTTPS para funcionar (o navegador so oferece o seletor
+de certificado A1 em conexoes seguras). Gere um certificado com:
+
+  npm run gen-certs
+
+Isso cria os arquivos certs/server-key.pem e certs/server-cert.pem.
+
+>>> Esse certificado gerado e AUTOASSINADO (nao emitido por uma
+    autoridade certificadora publica). Ele e suficiente para uso interno
+    na rede da empresa, mas fara o navegador exibir um aviso de "conexao
+    nao segura" na primeira visita (ver secao 7). <<<
+
+RECOMENDACAO PARA PRODUCAO: se o servidor tiver um dominio proprio (ex:
+juridico.arcmobilidade.com.br) acessivel pela rede interna, o ideal e
+substituir certs/server-key.pem e certs/server-cert.pem por um
+certificado emitido por uma CA reconhecida (ex: Let's Encrypt, ou a CA
+interna da empresa), mantendo os MESMOS NOMES DE ARQUIVO. Isso elimina o
+aviso de seguranca do navegador para os usuarios.
+
+
+------------------------------------------------------------------------
+5. INICIAR O SERVIDOR
+------------------------------------------------------------------------
+Para rodar manualmente (teste):
+
+  npm start
+
+O terminal deve mostrar:
+  Servidor rodando em https://localhost:8443
+
+Para acessar de outro computador da rede (nao so do proprio servidor),
+use o IP ou nome de rede do servidor no lugar de "localhost", por
+exemplo: https://192.168.1.50:8443 ou https://juridico.empresa.local:8443
+
+
+MANTER O SERVIDOR RODANDO PERMANENTEMENTE (produção)
+Em produção o servidor não deve depender de um terminal aberto. Opções:
+
+  a) Windows - usando NSSM (https://nssm.cc) para criar um Servico do
+     Windows que executa "node server.js" dentro da pasta do projeto e
+     reinicia automaticamente se cair ou se o servidor reiniciar.
+
+  b) Linux - usando um servico systemd. Exemplo de arquivo
+     /etc/systemd/system/juridico-carimbo.service:
+
+       [Unit]
+       Description=Registro de Aceite Juridico - ARC Mobilidade
+       After=network.target
+
+       [Service]
+       Type=simple
+       WorkingDirectory=/opt/juridico-carimbo
+       ExecStart=/usr/bin/node server.js
+       Restart=on-failure
+       User=www-data
+
+       [Install]
+       WantedBy=multi-user.target
+
+     Depois: sudo systemctl enable --now juridico-carimbo
+
+  c) Alternativa simples (Windows ou Linux): usar o gerenciador de
+     processos PM2 (https://pm2.keymetrics.io):
+       npm install -g pm2
+       pm2 start server.js --name juridico-carimbo
+       pm2 save
+       pm2 startup   (configura para iniciar junto com o sistema)
+
+
+PORTA E VARIAVEIS DE AMBIENTE
+Por padrao o servidor usa a porta 8443. Para mudar, defina a variavel de
+ambiente PORT antes de iniciar, por exemplo (Windows PowerShell):
+  $env:PORT = "9443"; npm start
+ou (Linux/macOS):
+  PORT=9443 npm start
+
+Se a empresa usa um firewall, libere a porta escolhida (8443 por padrao)
+para os computadores/rede dos usuarios do juridico e da diretoria.
+
+
+------------------------------------------------------------------------
+6. COMO O CERTIFICADO A1 E LIDO (IMPORTANTE PARA QUEM VAI DAR SUPORTE)
+------------------------------------------------------------------------
+O app NUNCA recebe o arquivo do certificado A1 nem a senha dele. O
+navegador do usuario apresenta o certificado diretamente na camada de
+conexao segura (TLS) quando o servidor solicita, e o servidor apenas LE
+os dados publicos do certificado (nome, CPF/CNPJ, emissor, validade) que
+o navegador entrega automaticamente nesse momento.
+
+Por padrao, abrir o site NAO pede certificado. O certificado so e
+solicitado no exato momento em que o usuario clica em "Identificar
+certificado" (etapa 2 do wizard) ou confirma o carimbo (etapa 4). Isso
+e feito atraves de uma tecnica chamada "renegociacao TLS sob demanda",
+por isso o servidor fixa a conexao em TLS 1.2 (a renegociacao nao existe
+mais em TLS 1.3) - ver a constante "maxVersion: 'TLSv1.2'" em server.js.
+Isso e uma limitacao tecnica aceita para viabilizar esse comportamento;
+nao reduz a seguranca da conexao em si (TLS 1.2 e um padrao seguro e
+amplamente usado).
+
+Requisito no computador do usuario do juridico: o certificado A1 precisa
+estar instalado no repositorio de certificados do Windows (ou do
+navegador, dependendo do navegador) daquele usuario ANTES de ele acessar
+o sistema. Isso normalmente e feito pelo proprio fabricante do
+certificado (Serasa, Certisign, Safeweb, etc.) durante a emissao/
+instalacao do certificado A1.
+
+
+------------------------------------------------------------------------
+7. PRIMEIRO ACESSO DE CADA USUARIO (AVISO DO NAVEGADOR)
+------------------------------------------------------------------------
+Como o certificado HTTPS do servidor e autoassinado (a menos que voce
+tenha seguido a recomendacao da secao 4), o navegador vai mostrar um
+aviso de seguranca ("A ligacao nao e privada" / "Sua conexao nao e
+particular") na primeira vez que cada usuario acessar o endereco do
+sistema. Isso e esperado. Oriente os usuarios a:
+
+  1. Clicar em "Avancado" (ou "Detalhes")
+  2. Clicar em "Ir para <endereco> (nao seguro)" / "Prosseguir assim
+     mesmo"
+
+Depois disso o navegador lembra da excecao e nao pergunta mais (naquele
+navegador/maquina). Esse aviso NAO aparece mais se o certificado for
+substituido por um emitido por uma CA reconhecida (secao 4).
+
+
+------------------------------------------------------------------------
+8. USO DO SISTEMA (RESUMO PARA TREINAMENTO DOS USUARIOS)
+------------------------------------------------------------------------
+Fluxo do JURIDICO (tela principal, index.html):
+  Etapa 1 - Upload: enviar o PDF do documento
+  Etapa 2 - Certificado: clicar em "Identificar certificado" e escolher
+            o certificado A1 quando o navegador solicitar
+  Etapa 3 - Posicionar: clicar no local da pagina onde o carimbo deve
+            ficar; arrastar o canto do carimbo para redimensionar;
+            opcionalmente marcar "Aplicar em todas as paginas"
+  Etapa 4 - Confirmar: revisar o resumo e clicar em "Aplicar carimbo e
+            salvar no historico"; o PDF final fica disponivel para
+            download e tambem salvo no historico
+
+Ao clicar em "Voltar" ate a Etapa 1, todo o processo e reiniciado (novo
+upload, novo certificado, nova posicao).
+
+Fluxo da DIRETORIA (tela historico.html, aba "Historico" no topo):
+  Lista todos os documentos ja validados, com nome do responsavel,
+  CPF/CNPJ, data/hora e link para baixar o PDF carimbado. Nao exige
+  login - e uma area somente leitura.
+
+
+------------------------------------------------------------------------
+9. BACKUP E DADOS
+------------------------------------------------------------------------
+Todos os dados do sistema ficam em arquivos locais dentro da propria
+pasta do projeto (nao ha banco de dados externo):
+  - data/history.json         -> registro de todos os documentos
+                                  validados (nome, CPF/CNPJ, datas, etc.)
+  - storage/originals/        -> PDFs originais enviados
+  - storage/signed/           -> PDFs finais com o carimbo aplicado
+
+Recomenda-se incluir essas 3 pastas/arquivo na rotina de backup do
+servidor. Se precisar migrar o sistema para outro servidor, basta copiar
+a pasta inteira do projeto (incluindo essas 3 localizacoes) e repetir os
+passos 3 a 5 deste guia no servidor novo.
+
+
+------------------------------------------------------------------------
+10. LIMITACOES CONHECIDAS DESTA VERSAO (1.0.0)
+------------------------------------------------------------------------
+- Carimbo visual, sem assinatura criptografica ICP-Brasil (ver aviso no
+  topo deste arquivo).
+- Historico em arquivo JSON local, sem banco de dados - adequado para
+  uso departamental, mas sem controle de concorrencia avancado para alto
+  volume simultaneo de usuarios.
+- Sem tela de login/autenticacao - qualquer pessoa com acesso a rede e
+  ao endereco do sistema pode enviar documentos e ver o historico. Se a
+  empresa precisar restringir o acesso, recomenda-se colocar o sistema
+  atras de uma VPN interna ou de um proxy reverso com autenticacao
+  (ex: autenticacao integrada do Windows, SSO da empresa).
+- O certificado HTTPS do servidor, se autoassinado, gera o aviso de
+  seguranca descrito na secao 7 em cada navegador novo.
+
+
+------------------------------------------------------------------------
+11. SUPORTE / PROXIMOS PASSOS SUGERIDOS
+------------------------------------------------------------------------
+Caso a empresa decida evoluir o sistema, os pontos mais relevantes sao:
+  - Trocar o certificado HTTPS autoassinado por um certificado valido
+    (elimina o aviso do navegador).
+  - Avaliar a necessidade de assinatura digital PAdES real (com validade
+    juridica), caso o carimbo visual atual nao seja suficiente para o
+    caso de uso juridico da empresa.
+  - Se o volume de documentos crescer muito, considerar migrar o
+    historico de data/history.json para um banco de dados (ex:
+    PostgreSQL, SQLite).
+  - Adicionar autenticacao/login se o acesso precisar ser restrito a
+    usuarios especificos.
+
+========================================================================
+ ARC Mobilidade - engenharia, seguranca e gestao
+ © ARC Mobilidade 2026
+========================================================================

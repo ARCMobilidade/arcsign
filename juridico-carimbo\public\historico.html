@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Histórico de Documentos Validados</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="/assets/logo-arc-negativo.png" alt="Arc Mobilidade" class="brand-logo" />
+      <span class="brand-divider"></span>
+      <span class="brand-title">Registro de Aceite — Jurídico</span>
+    </div>
+    <nav>
+      <a href="/index.html">Novo carimbo</a>
+      <a href="/historico.html" class="active">Histórico</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Documentos validados</h2>
+      <p class="hint">Área de consulta para a diretoria — visualização e download dos documentos já validados pelo jurídico.</p>
+      <table id="historyTable" class="history-table">
+        <thead>
+          <tr>
+            <th>Documento</th>
+            <th>Validado em</th>
+            <th>Responsável</th>
+            <th>CPF/CNPJ</th>
+            <th>Certificado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+      <p id="emptyState" class="hint hidden">Nenhum documento validado ainda.</p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>Registro de Aceite Jurídico — v1.0.0</span>
+    <span>© ARC Mobilidade 2026</span>
+  </footer>
+
+  <script src="/historico.js"></script>
+</body>
+</html>
