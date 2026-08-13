@@ -16,7 +16,7 @@ cert.validity.notAfter = new Date();
 cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 5);
 
 const attrs = [
-  { name: 'commonName', value: 'localhost' },
+  { name: 'commonName', value: 'aprovador.arcmobilidade.com.br' },
   { name: 'organizationName', value: 'Juridico Carimbo App - Dev' },
 ];
 cert.setSubject(attrs);
