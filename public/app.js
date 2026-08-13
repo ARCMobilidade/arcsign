@@ -233,12 +233,18 @@ els.nextPage.addEventListener('click', () => {
   if (state.currentPage < state.numPages - 1) { state.currentPage++; renderPage(); }
 });
 
+function getCanvasDisplaySize() {
+  const rect = els.canvas.getBoundingClientRect();
+  return { width: rect.width, height: rect.height };
+}
+
 function applyStampGeometry() {
   const { xRatio, yRatio, widthRatio, heightRatio } = state.stamp;
-  els.stampPreview.style.left = `${xRatio * els.canvas.width}px`;
-  els.stampPreview.style.top = `${yRatio * els.canvas.height}px`;
-  els.stampPreview.style.width = `${widthRatio * els.canvas.width}px`;
-  els.stampPreview.style.height = `${heightRatio * els.canvas.height}px`;
+  const { width, height } = getCanvasDisplaySize();
+  els.stampPreview.style.left = `${xRatio * width}px`;
+  els.stampPreview.style.top = `${yRatio * height}px`;
+  els.stampPreview.style.width = `${widthRatio * width}px`;
+  els.stampPreview.style.height = `${heightRatio * height}px`;
   updateStampFontSize();
 }
 
@@ -258,7 +264,7 @@ function updateStampFontSize() {
 
 els.canvas.addEventListener('click', (evt) => {
   const rect = els.canvas.getBoundingClientRect();
-  const xRatio = (evt.clientX - rect.left) / rect.width;
+  const xRatio = (evt.clientX - rect.left) / rect.width; // usa o tamanho exibido (getCanvasDisplaySize), igual em applyStampGeometry
   const yRatio = (evt.clientY - rect.top) / rect.height;
 
   const widthRatio = state.stamp ? state.stamp.widthRatio : DEFAULT_STAMP_WIDTH_RATIO;
@@ -285,8 +291,9 @@ const stampResizeObserver = new ResizeObserver(() => {
   const w = els.stampPreview.offsetWidth;
   const h = els.stampPreview.offsetHeight;
   if (!w || !h) return;
-  state.stamp.widthRatio = w / els.canvas.width;
-  state.stamp.heightRatio = h / els.canvas.height;
+  const canvasSize = getCanvasDisplaySize();
+  state.stamp.widthRatio = w / canvasSize.width;
+  state.stamp.heightRatio = h / canvasSize.height;
   updateStampFontSize();
 });
 stampResizeObserver.observe(els.stampPreview);
