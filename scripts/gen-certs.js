@@ -29,9 +29,10 @@ cert.setExtensions([
     name: 'subjectAltName',
     altNames: [
       { type: 2, value: 'localhost' },
+      { type: 2, value: 'aprovador.arcmobilidade.com.br' },
       { type: 7, ip: '127.0.0.1' },
     ],
-  },
+  }
 ]);
 
 cert.sign(keys.privateKey, forge.md.sha256.create());
